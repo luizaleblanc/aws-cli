@@ -1,0 +1,21 @@
+# Instruções locais do Claude (NUNCA versionar)
+CLAUDE.md
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Credenciais e ambiente
+.aws/
+*.env
+.env*
+*.pem
+
+# Saídas de teste / dados reais de destinatários
+out/
+*.log
+templates/*.data.json
+templates/*.real.json
+
+# SO / editor
+Thumbs.db
+.DS_Store
+.vscode/
