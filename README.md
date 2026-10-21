@@ -71,6 +71,8 @@ Cada marca tem sua própria base de leads. O disparo usa o mesmo template e o me
 - Formato da base: `email,nome` (o `nome` alimenta `{{nome}}` no template).
 - Rastreio por marca: `--email-tags Name=marca,Value=NOME_DA_MARCA`.
 - Não usa Locatários do SES; a persona é definida por envio.
+- Foto do remetente: não é controlada pelo SES. O Gmail exibe a foto do perfil Google Workspace do **endereço** remetente (vale para todos os e-mails desse endereço). Configuração da foto: responsabilidade do Thiago (Admin do Workspace).
+- Foto específica por marca exige endereço próprio da marca (ex.: `oduarte@grupoatalhos.com.br`, usuário no Workspace com a foto), mantendo `--reply-to-addresses comercial@grupoatalhos.com.br` para as respostas. O domínio já verificado no SES cobre o novo endereço.
 - Disparo para base real só após o link de descadastro (task 9 do plano).
 
 Teste da marca o Duarte:

@@ -38,6 +38,7 @@
 7.3 [x] Script `scripts/send-base.sh`: primeiro nome da base (ou do e-mail); simulação por padrão. Teste real para luiza.leblanc@ enviado.
 7.4 [x] Header preto com logo (S3 `email/logo-ad-preta.png`, HTTP 200).
 7.5 [ ] `update-email-template` no SES + reenvio de teste com header.
+   7.6 [ ] Foto do remetente da marca o Duarte (Thiago — Google Workspace).
 8. [ ] README atualizado e bloco de commit entregue.
 9. [ ] **Antes do disparo real (bloqueante):** definir e incluir o link de descadastro (destino e tratamento: formulário, resposta por e-mail ou lista de supressão do SES), com aprovação da Andréia.
 
