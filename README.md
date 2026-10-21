@@ -6,7 +6,7 @@ Provisiona e testa templates de e-mail no Amazon SES (API v2) via AWS CLI, para 
 - AWS CLI v2 ≥ 2.32.0 (`aws --version`)
 - Autenticação: `aws login` (recomendado) ou `aws configure`
 - Região: `us-east-2`
-- Identidade verificada no SES: domínio `grupoatalhos.com.br` (DKIM)
+- Identidades verificadas no SES (us-east-2): domínio `grupoatalhos.com.br` (DKIM) e MAIL FROM `envio.grupoatalhos.com.br`
 - Permissões IAM: `ses:CreateEmailTemplate`, `ses:GetEmailTemplate`, `ses:UpdateEmailTemplate`, `ses:TestRenderEmailTemplate`, `ses:SendEmail`, `ses:GetAccount`
 - Produção: conta fora do sandbox. Em sandbox, o destinatário de teste também precisa estar verificado.
 
@@ -20,10 +20,14 @@ aws sesv2 get-account --region us-east-2
 ```
 README.md
 .gitignore
+bases/
+  oduarte.example.csv                   # base de teste (fictícia)
 templates/
   andreia-fim-de-ano.json               # payload CreateEmailTemplate
   andreia-fim-de-ano.data.example.json  # exemplo de TemplateData (dados fictícios)
   send-test.json                        # payload do send-email de teste
+  smoke-test.json                       # teste simples sem template
+  send-oduarte-test.json                # teste da marca o Duarte
 docs/plano-sdd-andreia.md               # plano de ação SDD
 .claude/agents/                         # subagentes SDLC
 ```
@@ -37,6 +41,8 @@ docs/plano-sdd-andreia.md               # plano de ação SDD
 > Comandos válidos em PowerShell e Bash: todo JSON é passado via `file://`. Troque `DESTINATARIO_TESTE` pelo e-mail de teste.
 
 ```bash
+# 0. (Opcional) Teste simples de entrega, sem template
+aws sesv2 send-email --from-email-address "Grupo Atalhos Digitais <comercial@grupoatalhos.com.br>" --destination ToAddresses=DESTINATARIO_TESTE --content file://templates/smoke-test.json --region us-east-2
 # 1. Criar
 aws sesv2 create-email-template --cli-input-json file://templates/andreia-fim-de-ano.json --region us-east-2
 # 2. Verificar
@@ -50,6 +56,29 @@ aws sesv2 send-email --from-email-address "Grupo Atalhos Digitais <comercial@gru
 > Se um configuration set usar click tracking, o SES reescreve os links (o redirecionamento continua funcionando).
 
 > **Antes do disparo real:** o template precisa de link de descadastro (pendente, ver plano — task 9).
+
+## Bases de leads por marca e persona do remetente
+Cada marca tem sua própria base de leads. O disparo usa o mesmo template e o mesmo e-mail, mas o nome exibido do remetente segue a marca da base:
+
+| Marca (base) | `--from-email-address` |
+|---|---|
+| o Duarte | `"o Duarte do Grupo Atalhos <comercial@grupoatalhos.com.br>"` |
+
+- Bases reais ficam fora do git (`bases/*.csv`); no repo só há exemplos fictícios (`bases/*.example.csv`).
+- Formato da base: `email,nome` (o `nome` alimenta `{{nome}}` no template).
+- Rastreio por marca: `--email-tags Name=marca,Value=NOME_DA_MARCA`.
+- Não usa Locatários do SES; a persona é definida por envio.
+- Disparo para base real só após o link de descadastro (task 9 do plano).
+
+Teste da marca o Duarte:
+```bash
+aws sesv2 send-email --from-email-address "o Duarte do Grupo Atalhos <comercial@grupoatalhos.com.br>" --destination ToAddresses=DESTINATARIO_TESTE --content file://templates/send-oduarte-test.json --email-tags Name=marca,Value=oduarte --region us-east-2
+```
+
+## DNS do domínio (GoDaddy)
+- 3 CNAMEs DKIM `*._domainkey` → `*.dkim.amazonses.com` (publicados).
+- MX `envio` → `10 feedback-smtp.us-east-2.amazonses.com`; TXT `envio` → `v=spf1 include:amazonses.com ~all` (publicados).
+- DMARC existente: `p=quarantine` (alinhamento relaxado).
 
 ## Atualizar / remover
 ```bash

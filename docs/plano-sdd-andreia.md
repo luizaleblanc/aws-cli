@@ -23,14 +23,18 @@
 ## 3. Tasks
 0. [x] Regras locais e subagentes definidos.
 1. [x] Copy completa da Andréia recebida (mantida como original).
-2. [x] Remetente: `comercial@grupoatalhos.com.br`; domínio `grupoatalhos.com.br` verificado (DKIM).
-   [ ] Confirmar sandbox/produção (`aws sesv2 get-account --region us-east-2`). Em sandbox, verificar também o destinatário.
+2. [x] Remetente: `comercial@grupoatalhos.com.br` (verificado). Produção habilitada (50.000/24h, 14/s) — 21/10/2026.
+   2.1 [x] Identidade `grupoatalhos.com.br` criada (Easy DKIM); 3 CNAMEs publicados; DKIM SUCCESS.
+   2.2 [x] MAIL FROM `envio.grupoatalhos.com.br` (fallback USE_DEFAULT_VALUE); MX + TXT publicados.
    [ ] Confirmar permissões IAM do usuário da CLI (ses:CreateEmailTemplate, GetEmailTemplate, UpdateEmailTemplate, TestRenderEmailTemplate, SendEmail, GetAccount).
 3. [x] Arquivos do template gerados em `templates/`.
+3.1 [x] Teste simples (sem template) para `contato@grupoatalhos.com.br` — entregue; autenticado após DKIM.
 4. [ ] `aws sesv2 create-email-template --cli-input-json file://templates/andreia-fim-de-ano.json --region us-east-2`
 5. [ ] `aws sesv2 get-email-template --template-name andreia-fim-de-ano --region us-east-2`
 6. [ ] `aws sesv2 test-render-email-template --template-name andreia-fim-de-ano --template-data file://templates/andreia-fim-de-ano.data.example.json --region us-east-2`
 7. [ ] `aws sesv2 send-email --from-email-address "Grupo Atalhos Digitais <comercial@grupoatalhos.com.br>" --destination ToAddresses=DESTINATARIO_TESTE --content file://templates/send-test.json --region us-east-2`
+7.1 [ ] Teste por marca — o Duarte: From "o Duarte do Grupo Atalhos <comercial@grupoatalhos.com.br>", base de teste `bases/oduarte.example.csv` (contato@), tag `marca=oduarte`.
+7.2 [ ] Receber bases reais por marca (Thiago) — fora do git.
 8. [ ] README atualizado e bloco de commit entregue.
 9. [ ] **Antes do disparo real (bloqueante):** definir e incluir o link de descadastro (destino e tratamento: formulário, resposta por e-mail ou lista de supressão do SES), com aprovação da Andréia.
 
