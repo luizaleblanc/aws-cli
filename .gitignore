@@ -19,3 +19,7 @@ templates/*.real.json
 Thumbs.db
 .DS_Store
 .vscode/
+
+# Bases reais de leads (dados pessoais — LGPD)
+bases/*.csv
+!bases/*.example.csv
