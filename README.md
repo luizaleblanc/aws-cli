@@ -20,6 +20,8 @@ aws sesv2 get-account --region us-east-2
 ```
 README.md
 .gitignore
+assets/
+  logo-ad-preta.png                     # logo do header (hospedada no S3)
 bases/
   oduarte.example.csv                   # base de teste (fictícia)
 templates/
@@ -28,6 +30,7 @@ templates/
   send-test.json                        # payload do send-email de teste
   smoke-test.json                       # teste simples sem template
   send-oduarte-test.json                # teste da marca o Duarte
+scripts/send-base.sh                    # envio por base de leads (primeiro nome)
 docs/plano-sdd-andreia.md               # plano de ação SDD
 .claude/agents/                         # subagentes SDLC
 ```
@@ -75,10 +78,21 @@ Teste da marca o Duarte:
 aws sesv2 send-email --from-email-address "o Duarte do Grupo Atalhos <comercial@grupoatalhos.com.br>" --destination ToAddresses=DESTINATARIO_TESTE --content file://templates/send-oduarte-test.json --email-tags Name=marca,Value=oduarte --region us-east-2
 ```
 
+Envio por base — o primeiro nome vem da coluna `nome` (1ª palavra) ou, se vazia, do e-mail (`luiza.leblanc@` → Luiza); e-mails genéricos sem nome são pulados:
+```bash
+scripts/send-base.sh bases/oduarte.csv "o Duarte" oduarte            # simulação
+scripts/send-base.sh bases/oduarte.csv "o Duarte" oduarte --enviar   # envio real
+```
+
 ## DNS do domínio (GoDaddy)
 - 3 CNAMEs DKIM `*._domainkey` → `*.dkim.amazonses.com` (publicados).
 - MX `envio` → `10 feedback-smtp.us-east-2.amazonses.com`; TXT `envio` → `v=spf1 include:amazonses.com ~all` (publicados).
 - DMARC existente: `p=quarantine` (alinhamento relaxado).
+
+## Imagens do e-mail (S3)
+- Bucket `grupoatalhos-email-assets-024378233621` (us-east-2); leitura pública apenas em `email/*`.
+- Logo do header: `https://grupoatalhos-email-assets-024378233621.s3.us-east-2.amazonaws.com/email/logo-ad-preta.png` (fonte: `assets/logo-ad-preta.png`).
+- Após alterar o template: `aws sesv2 update-email-template --cli-input-json file://templates/andreia-fim-de-ano.json --region us-east-2`.
 
 ## Atualizar / remover
 ```bash

@@ -29,12 +29,15 @@
    [ ] Confirmar permissões IAM do usuário da CLI (ses:CreateEmailTemplate, GetEmailTemplate, UpdateEmailTemplate, TestRenderEmailTemplate, SendEmail, GetAccount).
 3. [x] Arquivos do template gerados em `templates/`.
 3.1 [x] Teste simples (sem template) para `contato@grupoatalhos.com.br` — entregue; autenticado após DKIM.
-4. [ ] `aws sesv2 create-email-template --cli-input-json file://templates/andreia-fim-de-ano.json --region us-east-2`
-5. [ ] `aws sesv2 get-email-template --template-name andreia-fim-de-ano --region us-east-2`
-6. [ ] `aws sesv2 test-render-email-template --template-name andreia-fim-de-ano --template-data file://templates/andreia-fim-de-ano.data.example.json --region us-east-2`
+4. [x] `aws sesv2 create-email-template --cli-input-json file://templates/andreia-fim-de-ano.json --region us-east-2`
+5. [x] `aws sesv2 get-email-template --template-name andreia-fim-de-ano --region us-east-2`
+6. [x] `aws sesv2 test-render-email-template --template-name andreia-fim-de-ano --template-data file://templates/andreia-fim-de-ano.data.example.json --region us-east-2`
 7. [ ] `aws sesv2 send-email --from-email-address "Grupo Atalhos Digitais <comercial@grupoatalhos.com.br>" --destination ToAddresses=DESTINATARIO_TESTE --content file://templates/send-test.json --region us-east-2`
-7.1 [ ] Teste por marca — o Duarte: From "o Duarte do Grupo Atalhos <comercial@grupoatalhos.com.br>", base de teste `bases/oduarte.example.csv` (contato@), tag `marca=oduarte`.
+7.1 [x] Teste por marca — o Duarte: From "o Duarte do Grupo Atalhos <comercial@grupoatalhos.com.br>", base de teste `bases/oduarte.example.csv` (contato@), tag `marca=oduarte`.
 7.2 [ ] Receber bases reais por marca (Thiago) — fora do git.
+7.3 [x] Script `scripts/send-base.sh`: primeiro nome da base (ou do e-mail); simulação por padrão. Teste real para luiza.leblanc@ enviado.
+7.4 [x] Header preto com logo (S3 `email/logo-ad-preta.png`, HTTP 200).
+7.5 [ ] `update-email-template` no SES + reenvio de teste com header.
 8. [ ] README atualizado e bloco de commit entregue.
 9. [ ] **Antes do disparo real (bloqueante):** definir e incluir o link de descadastro (destino e tratamento: formulário, resposta por e-mail ou lista de supressão do SES), com aprovação da Andréia.
 
