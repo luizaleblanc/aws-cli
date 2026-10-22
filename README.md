@@ -117,6 +117,23 @@ Limites da conta (us-east-2): **50.000 e-mails / 24 h** e **14 e-mails/s**.
 
 > **Pendente:** lote/retomada no `send-base.sh`, script de higiene da base e configuration set. Até isso ficar pronto, as etapas 1, 4 e 6 são manuais.
 
+## Disparo diário automático (`infra/disparo-diario/`)
+EventBridge Scheduler (todo dia, 10h de Brasília) → Lambda `disparo-diario`:
+1. Confere as métricas das últimas 24 h; se bounce ≥ 3% ou reclamação ≥ 0,05%, não envia e avisa.
+2. Lê a base e a posição em `s3://grupoatalhos-disparos-024378233621/<marca>/` (bucket privado; a base nunca entra no git).
+3. Envia o lote do dia (tamanhos em `LOTES`), com descadastro, e salva a nova posição em `estado.json`.
+4. Manda um resumo para `comercial@` e `luiza.leblanc@`.
+
+| Arquivo | Uso |
+|---|---|
+| `lambda_function.py` | código da Lambda (Python 3.12) |
+| `env.json` | variáveis: marca, tag, template, lista, lotes, destinatários do resumo |
+| `estado-inicial.json` | posição inicial na base (ex.: lote 1 já enviado à mão → `posicao: 1000`) |
+| `trust-*.json`, `policy-*.json` | funções IAM da Lambda e do agendador |
+
+Rodar agora (fora do horário): `aws lambda invoke --function-name disparo-diario --region us-east-2 out.json`.
+Pausar/encerrar: `aws scheduler delete-schedule --name disparo-diario-oduarte --region us-east-2`. Quando a base termina, a Lambda manda "concluído" e não envia mais nada.
+
 ## DNS do domínio (GoDaddy)
 - 3 CNAMEs DKIM `*._domainkey` → `*.dkim.amazonses.com` (publicados).
 - MX `envio` → `10 feedback-smtp.us-east-2.amazonses.com`; TXT `envio` → `v=spf1 include:amazonses.com ~all` (publicados).
