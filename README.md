@@ -27,6 +27,7 @@ bases/
 templates/
   andreia-fim-de-ano.json               # payload CreateEmailTemplate
   andreia-fim-de-ano.data.example.json  # exemplo de TemplateData (dados fictícios)
+  andreia-fim-de-ano.data.neutro.example.json  # TemplateData sem nome (saudação neutra)
   send-test.json                        # payload do send-email de teste
   smoke-test.json                       # teste simples sem template
   send-oduarte-test.json                # teste da marca o Duarte
@@ -80,7 +81,7 @@ Teste da marca o Duarte:
 aws sesv2 send-email --from-email-address "o Duarte do Grupo Atalhos <comercial@grupoatalhos.com.br>" --destination ToAddresses=DESTINATARIO_TESTE --content file://templates/send-oduarte-test.json --email-tags Name=marca,Value=oduarte --region us-east-2
 ```
 
-Envio por base — o primeiro nome vem da coluna `nome` (1ª palavra) ou, se vazia, do e-mail (`luiza.leblanc@` → Luiza); e-mails genéricos sem nome são pulados:
+Envio por base — o primeiro nome vem da coluna `nome` (1ª palavra). Na higiene da base, o nome só é tirado do e-mail quando é inequívoco (`luizaa.fq@` → Luiza); senão a coluna fica vazia e o template usa a saudação neutra (assunto "Ouvi dizer que…", corpo "Oi!"). E-mails genéricos sem nome são pulados:
 ```bash
 scripts/send-base.sh bases/oduarte.csv "o Duarte" oduarte            # simulação
 scripts/send-base.sh bases/oduarte.csv "o Duarte" oduarte --enviar   # envio real
