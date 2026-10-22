@@ -1,0 +1,12 @@
+{
+  "ContactListName": "grupoatalhos-leads",
+  "Description": "Leads das marcas do Grupo Atalhos",
+  "Topics": [
+    {
+      "TopicName": "oduarte",
+      "DisplayName": "o Duarte do Grupo Atalhos",
+      "Description": "E-mails da marca o Duarte",
+      "DefaultSubscriptionStatus": "OPT_IN"
+    }
+  ]
+}

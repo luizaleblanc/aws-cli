@@ -31,6 +31,7 @@ templates/
   send-test.json                        # payload do send-email de teste
   smoke-test.json                       # teste simples sem template
   send-oduarte-test.json                # teste da marca o Duarte
+  contact-list.json                     # lista de contatos do SES (descadastro por marca)
 scripts/send-base.sh                    # envio por base de leads (primeiro nome)
 docs/plano-sdd-andreia.md               # plano de ação SDD
 .claude/agents/                         # subagentes SDLC
@@ -59,7 +60,16 @@ aws sesv2 send-email --from-email-address "Grupo Atalhos Digitais <comercial@gru
 
 > Se um configuration set usar click tracking, o SES reescreve os links (o redirecionamento continua funcionando).
 
-> **Antes do disparo real:** o template precisa de link de descadastro (pendente, ver plano — task 9).
+## Descadastro (gerenciado pelo SES)
+O rodapé do template tem `{{amazonSESUnsubscribeUrl}}`. Quando o envio informa `--list-management-options`, o SES troca o placeholder pelo link de cada destinatário, adiciona os cabeçalhos `List-Unsubscribe` (um clique) e bloqueia novos envios para quem saiu. Cada marca é um tópico da lista `grupoatalhos-leads`.
+
+```bash
+# Uma vez: criar a lista com o tópico da marca
+aws sesv2 create-contact-list --cli-input-json file://templates/contact-list.json --region us-east-2
+# Quem se descadastrou
+aws sesv2 list-contacts --contact-list-name grupoatalhos-leads --filter FilteredStatus=OPT_OUT,TopicFilter={TopicName=oduarte} --region us-east-2
+```
+Nova marca: acrescentar um tópico com `aws sesv2 update-contact-list`. Doc: https://docs.aws.amazon.com/ses/latest/dg/sending-email-subscription-management.html
 
 ## Bases de leads por marca e persona do remetente
 Cada marca tem sua própria base de leads. O disparo usa o mesmo template e o mesmo e-mail, mas o nome exibido do remetente segue a marca da base:
@@ -74,7 +84,7 @@ Cada marca tem sua própria base de leads. O disparo usa o mesmo template e o me
 - Não usa Locatários do SES; a persona é definida por envio.
 - Foto do remetente: não é controlada pelo SES. O Gmail exibe a foto do perfil Google Workspace do **endereço** remetente (vale para todos os e-mails desse endereço). Configuração da foto: responsabilidade do Thiago (Admin do Workspace).
 - Foto específica por marca exige endereço próprio da marca (ex.: `oduarte@grupoatalhos.com.br`, usuário no Workspace com a foto), mantendo `--reply-to-addresses comercial@grupoatalhos.com.br` para as respostas. O domínio já verificado no SES cobre o novo endereço.
-- Disparo para base real só após o link de descadastro (task 9 do plano).
+- O `send-base.sh` envia com `--list-management-options ContactListName=grupoatalhos-leads,TopicName=TAG_MARCA`, ativando o descadastro.
 
 Teste da marca o Duarte:
 ```bash
@@ -97,7 +107,7 @@ Limites da conta (us-east-2): **50.000 e-mails / 24 h** e **14 e-mails/s**.
 
 | # | Etapa | Bloqueia se… |
 |---|---|---|
-| 0 | Link de descadastro no template (task 9) e configuration set com métricas de reputação | não houver descadastro |
+| 0 | Lista de contatos criada (descadastro) e configuration set com métricas de reputação | a lista não existir |
 | 1 | Higiene da base: normalizar, remover duplicados, inválidos e a lista de supressão do SES | sobrar menos de 90% de e-mails válidos |
 | 2 | Simulação (`send-base.sh` sem `--enviar`): conferir nomes e pulados | houver nomes errados |
 | 3 | Envio-semente para ~5 caixas internas (Gmail/Outlook) | cair no spam |

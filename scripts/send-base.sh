@@ -7,6 +7,7 @@
 set -euo pipefail
 BASE="$1"; MARCA="$2"; TAG="$3"; MODO="${4:-}"
 TEMPLATE="andreia-fim-de-ano"; REGION="us-east-2"
+LISTA="grupoatalhos-leads"   # lista de contatos do SES; o tópico é a TAG da marca (descadastro)
 FROM="$MARCA do Grupo Atalhos <comercial@grupoatalhos.com.br>"
 GENERICOS="contato comercial atendimento vendas suporte financeiro rh noreply no-reply admin info"
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
@@ -25,7 +26,8 @@ tail -n +2 "$BASE" | tr -d '\r' | while IFS=, read -r email nome; do
   jq -cn --arg t "$TEMPLATE" --arg d "$data" '{Template:{TemplateName:$t,TemplateData:$d}}' > "$TMP"
   if [ "$MODO" = "--enviar" ]; then
     id=$(aws sesv2 send-email --from-email-address "$FROM" --destination "ToAddresses=$email" \
-      --content "file://$TMP" --email-tags "Name=marca,Value=$TAG" --region "$REGION" --query MessageId --output text)
+      --content "file://$TMP" --email-tags "Name=marca,Value=$TAG" \
+      --list-management-options "ContactListName=$LISTA,TopicName=$TAG" --region "$REGION" --query MessageId --output text)
     echo "ENVIADO $email ($pn) $id"
     sleep 0.1
   else
