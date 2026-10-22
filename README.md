@@ -86,6 +86,26 @@ scripts/send-base.sh bases/oduarte.csv "o Duarte" oduarte            # simulaç�
 scripts/send-base.sh bases/oduarte.csv "o Duarte" oduarte --enviar   # envio real
 ```
 
+## Operação de disparos em massa
+Limites da conta (us-east-2): **50.000 e-mails / 24 h** e **14 e-mails/s**.
+
+- **Origem da base:** a planilha da campanha é exportada como CSV (`email,nome`) para `bases/<marca>.csv`, que fica fora do git. Use uma base por marca.
+- **Aquecimento do domínio:** mesmo cabendo na cota, a base não é enviada de uma vez. Lotes diários: **1k → 2k → 3k → 4k**; cada lote só sai se o anterior estiver saudável.
+- **Taxa:** no máximo ~10 envios/s, abaixo do limite de 14/s.
+- **Critérios de pausa:** bounce > 3% ou reclamação > 0,05%. A AWS coloca a conta em revisão a partir de 5% de bounce ou 0,1% de reclamação.
+
+| # | Etapa | Bloqueia se… |
+|---|---|---|
+| 0 | Link de descadastro no template (task 9) e configuration set com métricas de reputação | não houver descadastro |
+| 1 | Higiene da base: normalizar, remover duplicados, inválidos e a lista de supressão do SES | sobrar menos de 90% de e-mails válidos |
+| 2 | Simulação (`send-base.sh` sem `--enviar`): conferir nomes e pulados | houver nomes errados |
+| 3 | Envio-semente para ~5 caixas internas (Gmail/Outlook) | cair no spam |
+| 4 | Envio do lote do dia | — |
+| 5 | Após 24 h: conferir bounce e reclamação (`aws sesv2 get-account --region us-east-2`) | ultrapassar os critérios de pausa |
+| 6 | Próximo lote, retomando de onde parou | — |
+
+> **Pendente:** lote/retomada no `send-base.sh`, script de higiene da base e configuration set. Até isso ficar pronto, as etapas 1, 4 e 6 são manuais.
+
 ## DNS do domínio (GoDaddy)
 - 3 CNAMEs DKIM `*._domainkey` → `*.dkim.amazonses.com` (publicados).
 - MX `envio` → `10 feedback-smtp.us-east-2.amazonses.com`; TXT `envio` → `v=spf1 include:amazonses.com ~all` (publicados).
