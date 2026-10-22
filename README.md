@@ -7,7 +7,8 @@ Provisiona e testa templates de e-mail no Amazon SES (API v2) via AWS CLI, para 
 - Autenticação: `aws login` (recomendado) ou `aws configure`
 - Região: `us-east-2`
 - Identidades verificadas no SES (us-east-2): domínio `grupoatalhos.com.br` (DKIM) e MAIL FROM `envio.grupoatalhos.com.br`
-- Permissões IAM: `ses:CreateEmailTemplate`, `ses:GetEmailTemplate`, `ses:UpdateEmailTemplate`, `ses:TestRenderEmailTemplate`, `ses:SendEmail`, `ses:GetAccount`
+- Permissões IAM: `ses:CreateEmailTemplate`, `ses:GetEmailTemplate`, `ses:UpdateEmailTemplate`, `ses:TestRenderEmailTemplate`, `ses:SendEmail`, `ses:GetAccount`, `ses:CreateContactList`; para o disparo automático, também IAM, Lambda, EventBridge Scheduler e S3
+- Sem AWS CLI logado no computador: os comandos rodam no **AWS CloudShell** (arquivos enviados por *Ações → Carregar arquivo*)
 - Produção: conta fora do sandbox. Em sandbox, o destinatário de teste também precisa estar verificado.
 
 Checar a configuração:
@@ -32,7 +33,12 @@ templates/
   smoke-test.json                       # teste simples sem template
   send-oduarte-test.json                # teste da marca o Duarte
   contact-list.json                     # lista de contatos do SES (descadastro por marca)
-scripts/send-base.sh                    # envio por base de leads (primeiro nome)
+scripts/send-base.sh                    # envio manual por base de leads (lote 1, testes)
+infra/disparo-diario/                   # disparo diário automático (Lambda + EventBridge Scheduler)
+  lambda_function.py                    # código da Lambda
+  env.json                              # variáveis da campanha
+  estado-inicial.json                   # posição inicial na base
+  trust-*.json, policy-*.json           # funções e políticas IAM
 docs/plano-sdd-andreia.md               # plano de ação SDD
 .claude/agents/                         # subagentes SDLC
 ```
@@ -115,7 +121,26 @@ Limites da conta (us-east-2): **50.000 e-mails / 24 h** e **14 e-mails/s**.
 | 5 | Após 24 h: conferir bounce e reclamação (`aws sesv2 get-account --region us-east-2`) | ultrapassar os critérios de pausa |
 | 6 | Próximo lote, retomando de onde parou | — |
 
-> **Pendente:** lote/retomada no `send-base.sh`, script de higiene da base e configuration set. Até isso ficar pronto, as etapas 1, 4 e 6 são manuais.
+As etapas 4 a 6 são feitas pelo disparo diário automático (seção abaixo). O lote 1 pode sair à mão pelo `send-base.sh`.
+
+> **Pendente:** configuration set com eventos por e-mail (entrega, abertura, clique) e script de higiene da base no repositório.
+
+### Campanha o Duarte (out/2026)
+| Lote | Data | E-mails | Como |
+|---|---|---|---|
+| 1 | 22/10 | 1.000 | manual (`send-base.sh` no CloudShell): 1.000 enviados, 0 erros |
+| 2 | 23/10 | 2.000 | automático, 10h |
+| 3 | 24/10 | 3.000 | automático, 10h |
+| 4 | 25/10 | 4.159 | automático, 10h |
+
+Base: 10.159 e-mails válidos (de 10.275), 9.085 com nome e 1.074 com saudação neutra. Ao terminar: apagar o agendamento e o bucket `grupoatalhos-disparos-024378233621` (dados reais).
+
+### Acompanhar os envios (CloudShell)
+```bash
+aws sesv2 get-account --region us-east-2 --query '{Status:EnforcementStatus,Enviados24h:SendQuota.SentLast24Hours}'
+aws logs tail /aws/lambda/disparo-diario --since 1h --region us-east-2
+aws sesv2 list-suppressed-destinations --region us-east-2
+```
 
 ## Disparo diário automático (`infra/disparo-diario/`)
 EventBridge Scheduler (todo dia, 10h de Brasília) → Lambda `disparo-diario`:
@@ -131,8 +156,26 @@ EventBridge Scheduler (todo dia, 10h de Brasília) → Lambda `disparo-diario`:
 | `estado-inicial.json` | posição inicial na base (ex.: lote 1 já enviado à mão → `posicao: 1000`) |
 | `trust-*.json`, `policy-*.json` | funções IAM da Lambda e do agendador |
 
-Rodar agora (fora do horário): `aws lambda invoke --function-name disparo-diario --region us-east-2 out.json`.
+Criação (CloudShell, na pasta com os arquivos de `infra/disparo-diario/`):
+```bash
+B=grupoatalhos-disparos-024378233621
+aws s3api create-bucket --bucket $B --region us-east-2 --create-bucket-configuration LocationConstraint=us-east-2
+aws s3api put-public-access-block --bucket $B --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true --region us-east-2
+aws s3 cp BASE.csv s3://$B/oduarte/base.csv --region us-east-2
+aws s3 cp estado-inicial.json s3://$B/oduarte/estado.json --region us-east-2
+aws iam create-role --role-name disparo-diario-lambda --assume-role-policy-document file://trust-lambda.json
+aws iam put-role-policy --role-name disparo-diario-lambda --policy-name disparo-diario --policy-document file://policy-lambda.json
+aws iam create-role --role-name disparo-diario-scheduler --assume-role-policy-document file://trust-scheduler.json
+aws iam put-role-policy --role-name disparo-diario-scheduler --policy-name invocar-lambda --policy-document file://policy-scheduler.json
+zip -q funcao.zip lambda_function.py && sleep 15
+aws lambda create-function --function-name disparo-diario --runtime python3.12 --handler lambda_function.lambda_handler --role arn:aws:iam::024378233621:role/disparo-diario-lambda --zip-file fileb://funcao.zip --timeout 900 --memory-size 256 --environment file://env.json --region us-east-2
+aws scheduler create-schedule --name disparo-diario-oduarte --region us-east-2 --schedule-expression "cron(0 10 * * ? *)" --schedule-expression-timezone America/Sao_Paulo --flexible-time-window Mode=OFF --target '{"Arn":"arn:aws:lambda:us-east-2:024378233621:function:disparo-diario","RoleArn":"arn:aws:iam::024378233621:role/disparo-diario-scheduler","RetryPolicy":{"MaximumRetryAttempts":0}}'
+```
+`MaximumRetryAttempts: 0` evita reenvio duplicado se a Lambda falhar. A Lambda também não envia duas vezes no mesmo dia (`ultimo_dia` em `estado.json`).
+
+Rodar agora (fora do horário): `aws lambda invoke --function-name disparo-diario --region us-east-2 out.json` — envia o próximo lote, se ainda não houve envio hoje.
 Pausar/encerrar: `aws scheduler delete-schedule --name disparo-diario-oduarte --region us-east-2`. Quando a base termina, a Lambda manda "concluído" e não envia mais nada.
+Limpeza ao final: `aws s3 rb s3://grupoatalhos-disparos-024378233621 --force --region us-east-2`.
 
 ## DNS do domínio (GoDaddy)
 - 3 CNAMEs DKIM `*._domainkey` → `*.dkim.amazonses.com` (publicados).
