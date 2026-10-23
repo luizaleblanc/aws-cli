@@ -34,7 +34,7 @@ def gravar(key, texto):
 
 def soma(metrica, inicio, fim):
     r = cw.get_metric_statistics(Namespace="AWS/SES", MetricName=metrica, StartTime=inicio,
-                                 EndTime=fim, Period=86400 * 2, Statistics=["Sum"])
+                                 EndTime=fim, Period=3600, Statistics=["Sum"])
     return sum(p["Sum"] for p in r["Datapoints"])
 
 
@@ -52,6 +52,8 @@ def primeiro_nome(nome):
 def lambda_handler(event, context):
     estado = json.loads(ler("estado.json"))
     hoje = datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
+    if estado.get("pausado"):
+        return {"status": "pausado"}   # só volta quando alguém grava pausado=false no estado.json
     if estado.get("ultimo_dia") == hoje:
         return {"status": "ja_enviado_hoje"}
 
@@ -61,19 +63,26 @@ def lambda_handler(event, context):
         resumo("concluído", [f"Base inteira enviada ({len(base)} e-mails). Desative o agendamento."])
         return {"status": "concluido"}
 
-    # Saúde das últimas 24 h antes de enviar mais.
-    fim = datetime.now(timezone.utc); inicio = fim - timedelta(hours=24)
-    env, bnc, cpl = soma("Send", inicio, fim), soma("Bounce", inicio, fim), soma("Complaint", inicio, fim)
-    tx_b, tx_c = (bnc / env, cpl / env) if env else (0.0, 0.0)
-    saude = [f"Últimas 24 h: {env:.0f} enviados, {bnc:.0f} bounces ({tx_b:.2%}), "
-             f"{cpl:.0f} reclamações ({tx_c:.3%})."]
-    if tx_b >= MAX_BOUNCE or tx_c >= MAX_COMPLAINT:
-        resumo("PAUSADO", saude + ["Acima do limite (bounce 3% / reclamação 0,05%). Nada foi enviado hoje.",
-                                   f"Próximo lote começa na linha {pos + 1}."])
-        return {"status": "pausado"}
+    # Saúde do lote anterior inteiro (desde o início dele, sem janela que expira).
+    fim = datetime.now(timezone.utc)
+    saude = ["Primeiro lote da campanha (ou retomada): sem lote anterior a conferir."]
+    if estado.get("inicio_lote"):
+        inicio = datetime.fromisoformat(estado["inicio_lote"])
+        env, bnc, cpl = soma("Send", inicio, fim), soma("Bounce", inicio, fim), soma("Complaint", inicio, fim)
+        tx_b, tx_c = (bnc / env, cpl / env) if env else (0.0, 0.0)
+        saude = [f"Lote anterior: {env:.0f} enviados, {bnc:.0f} bounces ({tx_b:.2%}), "
+                 f"{cpl:.0f} reclamações ({tx_c:.3%})."]
+        if tx_b >= MAX_BOUNCE or tx_c >= MAX_COMPLAINT:
+            gravar("estado.json", json.dumps({**estado, "pausado": True}))
+            resumo("PAUSADO", saude + [
+                "Acima do limite (bounce 3% / reclamação 0,05%). Nada foi enviado e o fluxo fica pausado.",
+                "Para retomar, grave pausado=false em estado.json (ver README).",
+                f"Próximo lote começa na linha {pos + 1}."])
+            return {"status": "pausado"}
 
     tamanho = LOTES[min(lote, len(LOTES) - 1)]
     fatia = base[pos:pos + tamanho]
+    inicio_lote = fim.isoformat()
     enviados, pulados, erros = 0, 0, []
     for i, linha in enumerate(fatia):
         email = linha["email"].strip()
@@ -98,7 +107,8 @@ def lambda_handler(event, context):
         time.sleep(0.1)  # ~8-10 envios/s, abaixo do limite de 14/s
 
     pos += len(fatia)
-    gravar("estado.json", json.dumps({"posicao": pos, "lote": lote + 1, "ultimo_dia": hoje}))
+    gravar("estado.json", json.dumps({"posicao": pos, "lote": lote + 1, "ultimo_dia": hoje,
+                                      "inicio_lote": inicio_lote, "pausado": False}))
     resumo(f"lote {lote + 1} enviado", saude + [
         f"Lote {lote + 1}: {enviados} enviados, {pulados} pulados, {len(erros)} rejeitados.",
         f"Progresso: {pos} de {len(base)}.", *erros[:20]])

@@ -128,10 +128,13 @@ As etapas 4 a 6 são feitas pelo disparo diário automático (seção abaixo). O
 ### Campanha o Duarte (out/2026)
 | Lote | Data | E-mails | Como |
 |---|---|---|---|
-| 1 | 22/10 | 1.000 | manual (`send-base.sh` no CloudShell): 1.000 enviados, 0 erros |
-| 2 | 23/10 | 2.000 | automático, 10h |
-| 3 | 24/10 | 3.000 | automático, 10h |
-| 4 | 25/10 | 4.159 | automático, 10h |
+| 1 | 22/10 | 1.000 | manual: 34 bounces (3,4%), 1 reclamação (0,1%) → pausado em 23/10 |
+| 2 | 24/10 | 500 | automático, 10h (retomada aceitando o lote 1) |
+| 3 | 25/10 | 1.000 | automático, se o lote anterior ficar abaixo dos limites |
+| 4 | 26/10 | 1.500 | idem |
+| 5 | 27/10 | 2.000 | idem |
+| 6 | 28/10 | 2.500 | idem |
+| 7 | 29/10 | 1.659 (resto) | idem |
 
 Base: 10.159 e-mails válidos (de 10.275), 9.085 com nome e 1.074 com saudação neutra. Ao terminar: apagar o agendamento e o bucket `grupoatalhos-disparos-024378233621` (dados reais).
 
@@ -144,7 +147,7 @@ aws sesv2 list-suppressed-destinations --region us-east-2
 
 ## Disparo diário automático (`infra/disparo-diario/`)
 EventBridge Scheduler (todo dia, 10h de Brasília) → Lambda `disparo-diario`:
-1. Confere as métricas das últimas 24 h; se bounce ≥ 3% ou reclamação ≥ 0,05%, não envia e avisa.
+1. Confere o lote anterior inteiro (desde o início dele, em `inicio_lote`); se bounce ≥ 3% ou reclamação ≥ 0,05%, não envia, grava `pausado: true` e avisa. Pausado, não volta sozinho.
 2. Lê a base e a posição em `s3://grupoatalhos-disparos-024378233621/<marca>/` (bucket privado; a base nunca entra no git).
 3. Envia o lote do dia (tamanhos em `LOTES`), com descadastro, e salva a nova posição em `estado.json`.
 4. Manda um resumo para `comercial@` e `luiza.leblanc@`.
@@ -175,6 +178,10 @@ aws scheduler create-schedule --name disparo-diario-oduarte --region us-east-2 -
 
 Rodar agora (fora do horário): `aws lambda invoke --function-name disparo-diario --region us-east-2 out.json` — envia o próximo lote, se ainda não houve envio hoje.
 Pausar/encerrar: `aws scheduler delete-schedule --name disparo-diario-oduarte --region us-east-2`. Quando a base termina, a Lambda manda "concluído" e não envia mais nada.
+Retomar após pausa (aceitando o lote anterior): gravar um estado novo com `pausado: false` e `inicio_lote` vazio, mantendo `posicao`:
+```bash
+aws s3 cp s3://grupoatalhos-disparos-024378233621/oduarte/estado.json - --region us-east-2   # ver posição atual
+```
 Limpeza ao final: `aws s3 rb s3://grupoatalhos-disparos-024378233621 --force --region us-east-2`.
 
 ## DNS do domínio (GoDaddy)
