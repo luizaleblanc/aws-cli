@@ -1,7 +1,7 @@
 {
   "Version": "2012-10-17",
   "Statement": [
-    { "Effect": "Allow", "Action": "ses:SendEmail", "Resource": "*" },
+    { "Effect": "Allow", "Action": ["ses:SendEmail", "ses:SendTemplatedEmail"], "Resource": "*" },
     { "Effect": "Allow", "Action": "cloudwatch:GetMetricStatistics", "Resource": "*" },
     {
       "Effect": "Allow",
