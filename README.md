@@ -176,7 +176,9 @@ aws scheduler create-schedule --name disparo-diario-oduarte --region us-east-2 -
 ```
 `MaximumRetryAttempts: 0` evita reenvio duplicado se a Lambda falhar. A Lambda também não envia duas vezes no mesmo dia (`ultimo_dia` em `estado.json`).
 
-Rodar agora (fora do horário): `aws lambda invoke --function-name disparo-diario --region us-east-2 out.json` — envia o próximo lote, se ainda não houve envio hoje.
+Rodar agora (fora do horário): `aws lambda invoke --function-name disparo-diario --invocation-type Event --region us-east-2 /tmp/out.json` — envia o próximo lote, se ainda não houve envio hoje.
+> **Nunca** invocar sem `--invocation-type Event`: a chamada síncrona estoura o tempo do CLI (60 s), o CLI repete a chamada e cada repetição envia o lote de novo (ocorreu em 28/10: lote de 2.000 enviado 3 vezes). A função tem concorrência reservada = 1 como proteção extra:
+> `aws lambda put-function-concurrency --function-name disparo-diario --reserved-concurrent-executions 1 --region us-east-2`
 Pausar/encerrar: `aws scheduler delete-schedule --name disparo-diario-oduarte --region us-east-2`. Quando a base termina, a Lambda manda "concluído" e não envia mais nada.
 Retomar após pausa (aceitando o lote anterior): gravar um estado novo com `pausado: false` e `inicio_lote` vazio, mantendo `posicao`:
 ```bash
