@@ -142,7 +142,7 @@ Lições para as próximas campanhas:
 - Excluir provedores antigos e domínios corporativos; validar amostra antes.
 - Invocar a Lambda só com `--invocation-type Event`.
 
-Limpeza pendente: `aws s3 rb s3://grupoatalhos-disparos-024378233621 --force --region us-east-2` (dados reais). Agendamento já apagado.
+Limpeza concluída em 29/10: agendamento e bucket `grupoatalhos-disparos-024378233621` (dados reais) apagados. Lambda, funções IAM e lista de contatos permanecem para reuso.
 
 ### Acompanhar os envios (CloudShell)
 ```bash
