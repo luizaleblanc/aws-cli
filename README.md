@@ -125,18 +125,24 @@ As etapas 4 a 6 são feitas pelo disparo diário automático (seção abaixo). O
 
 > **Pendente:** configuration set com eventos por e-mail (entrega, abertura, clique) e script de higiene da base no repositório.
 
-### Campanha o Duarte (out/2026)
-| Lote | Data | E-mails | Como |
-|---|---|---|---|
-| 1 | 22/10 | 1.000 | manual: 34 bounces (3,4%), 1 reclamação (0,1%) → pausado em 23/10 |
-| 2 | 24/10 | 500 | automático, 10h (retomada aceitando o lote 1) |
-| 3 | 25/10 | 1.000 | automático, se o lote anterior ficar abaixo dos limites |
-| 4 | 26/10 | 1.500 | idem |
-| 5 | 27/10 | 2.000 | idem |
-| 6 | 28/10 | 2.500 | idem |
-| 7 | 29/10 | 1.659 (resto) | idem |
+### Campanha o Duarte (out/2026) — encerrada em 29/10
+| Data | E-mails | Resultado |
+|---|---|---|
+| 22/10 | 1.000 (manual) | 3,4% bounce, 0,1% reclamação → pausa |
+| 24–25/10 | 0 | falha de permissão (`ses:SendTemplatedEmail`), corrigida em 26/10 |
+| 26/10 | 500 | ok |
+| 27/10 | 1.000 | 3,59% bounce → pausa |
+| 28/10 | 2.000 (enviado 3×) | base filtrada (sem bol/ig/uol/live/domínios de empresa); invocação síncrona repetida pelo CLI; 3,63% bounce, 0,05% reclamação |
 
-Base: 10.159 e-mails válidos (de 10.275), 9.085 com nome e 1.074 com saudação neutra. Ao terminar: apagar o agendamento e o bucket `grupoatalhos-disparos-024378233621` (dados reais).
+Total: **4.500 destinatários** de 10.159; 5.224 não enviados. Encerrada para proteger a reputação da conta (status `HEALTHY`). Bounce ficou em ~3,5% em todos os lotes mesmo com a base filtrada e amostra ZeroBounce com só 1% inválido — indício de recusas por reputação/política, não só endereços inexistentes.
+
+Lições para as próximas campanhas:
+- Usar bases de opt-in (formulário, site); listas extraídas do LinkedIn geram bounce e reclamação acima dos limites.
+- Criar configuration set com eventos de bounce/reclamação antes do disparo, para ver o motivo de cada recusa.
+- Excluir provedores antigos e domínios corporativos; validar amostra antes.
+- Invocar a Lambda só com `--invocation-type Event`.
+
+Limpeza pendente: `aws s3 rb s3://grupoatalhos-disparos-024378233621 --force --region us-east-2` (dados reais). Agendamento já apagado.
 
 ### Acompanhar os envios (CloudShell)
 ```bash
